@@ -22,13 +22,16 @@ export const handler = async () => {
     }
   }
 
-  if (!config.API_KEY || !config.PROJECT_ID || !config.APP_ID) {
+  const missing = fields.filter((f) => !config[f])
+  if (missing.length > 0) {
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        error:
-          'Firebase config missing. Set FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID and FIREBASE_APP_ID (or the VITE_ prefixed versions) in Netlify environment variables.',
+        error: `Function env has no value for: ${missing
+          .map((f) => 'FIREBASE_' + f)
+          .join(', ')}. In Netlify > Site configuration > Environment variables, open each var and set Scope to include FUNCTIONS (or "All scopes"), then redeploy.`,
+        missing,
       }),
     }
   }

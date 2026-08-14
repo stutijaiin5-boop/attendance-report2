@@ -30,7 +30,12 @@ export async function initFirebase() {
         const data = await res.json()
         config = data.config
       } else {
-        console.warn('Firebase config function unavailable, falling back to build-time env vars.')
+        const detail = await res.json().catch(() => null)
+        console.warn(
+          'Firebase config function unavailable:',
+          detail?.error || res.status,
+          'Falling back to build-time env vars.',
+        )
       }
     } catch (err) {
       console.warn('Firebase config function failed, falling back to build-time env vars.', err)

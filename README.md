@@ -79,14 +79,19 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
 ```
 
-**Netlify (production)** — set the *same* values without the `VITE_` prefix in **Site settings → Environment variables**:
+**Netlify (production)** — set the *same* values **twice** in **Site configuration → Environment variables**:
+
+1. `VITE_FIREBASE_*` prefixed versions — Vite bakes these into the bundle at build time, so the app **always** works (standard Firebase practice; web config is public by design).
+2. `FIREBASE_*` versions (no prefix) — served at runtime by `/.netlify/functions/get-firebase-config`.
 
 ```
 FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID,
 FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID
 ```
 
-In production the app fetches its config from `/.netlify/functions/get-firebase-config`, so the keys are **not** baked into the client bundle. (Note: Firebase web config is public by design — real security comes from the Firestore rules above. Keep private keys, like a Firebase service account, server-side only.)
+> ⚠️ **Scope matters:** for each variable, Scope must include **FUNCTIONS** (choose *All scopes*). Variables scoped to *Builds only* are NOT visible to Netlify Functions at runtime — the function will return a "missing" error even though the build succeeded. After changing scope or adding vars, trigger **Deploys → Clear cache and deploy site**, because function envs are snapshotted per deploy.
+
+In production the app first fetches `/.netlify/functions/get-firebase-config`; if that fails or returns incomplete data, it falls back to the bundled `VITE_FIREBASE_*` values. Keys are never hardcoded in source. (Keep private keys, like a Firebase service account, server-side only.)
 
 ### 4. Run locally
 
