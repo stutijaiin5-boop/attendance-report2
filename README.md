@@ -116,8 +116,7 @@ netlify deploy --prod
 
 ## Netlify functions
 
-- `netlify/functions/get-firebase-config.js` — serves Firebase config from env vars in production.
-- `netlify/functions/admin-example.js` — template for privileged server-side work (e.g. scheduled low-attendance notifications) using the Firebase Admin SDK. Requires `FIREBASE_SERVICE_ACCOUNT` env var and `npm install firebase-admin`, then it can be exposed on a [scheduled function](https://docs.netlify.com/functions/scheduled-functions/).
+- `netlify/functions/get-firebase-config.js` — serves Firebase config from env vars in production, so keys aren't bundled into the static site.
 
 ## Project structure
 
