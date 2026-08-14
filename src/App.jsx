@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Spinner from './components/Spinner'
 import AuthPage from './pages/AuthPage'
@@ -9,7 +9,7 @@ function Protected() {
   const { user, loading } = useAuth()
   if (loading) return <Spinner label="Signing you in…" />
   if (!user) return <Navigate to="/login" replace />
-  return null
+  return <Outlet />
 }
 
 export default function App() {
