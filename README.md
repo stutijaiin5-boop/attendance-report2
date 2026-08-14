@@ -19,7 +19,7 @@ A full-stack attendance tracker that tells you your real number: how safe your b
 
 | Layer | Tool |
 | --- | --- |
-| Frontend | React 18 + Vite 5 + Tailwind CSS |
+| Frontend | React 18 + Vite 4 + Tailwind CSS |
 | Auth + DB | Firebase Auth + Cloud Firestore |
 | Serverless | Netlify Functions |
 | Hosting | Netlify (static site + functions) |
