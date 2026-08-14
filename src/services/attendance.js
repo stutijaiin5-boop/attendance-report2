@@ -7,42 +7,39 @@ function userPath() {
   return `users/${u.uid}`
 }
 
-export async function createSubject({ name, targetPercent, scheduledDays }) {
-  const ref = collection(getDb(), `${userPath()}/subjects`)
+export async function createCard(name) {
+  const ref = collection(getDb(), `${userPath()}/cards`)
   return addDoc(ref, {
     name: name.trim(),
-    targetPercent: Number(targetPercent),
-    scheduledDays,
     createdAt: serverTimestamp(),
   })
 }
 
-export async function updateSubject(subjectId, data) {
-  const ref = doc(getDb(), `${userPath()}/subjects/${subjectId}`)
-  return updateDoc(ref, {
-    ...data,
-    name: data.name?.trim(),
-    targetPercent: Number(data.targetPercent),
-    updatedAt: serverTimestamp(),
-  })
+export async function renameCard(cardId, name) {
+  const ref = doc(getDb(), `${userPath()}/cards/${cardId}`)
+  return updateDoc(ref, { name: name.trim(), updatedAt: serverTimestamp() })
 }
 
-// status null removes the record (unmark); otherwise sets present/absent/cancelled
-export async function markAttendance(subjectId, dateKey, status) {
-  const ref = doc(getDb(), `${userPath()}/subjects/${subjectId}/records/${dateKey}`)
-  if (status === null) return deleteDoc(ref)
-  return setDoc(ref, { status }, { merge: true })
-}
-
-export async function deleteSubject(subjectId) {
+export async function deleteCard(cardId) {
   const db = getDb()
-  const base = `${userPath()}/subjects/${subjectId}`
+  const base = `${userPath()}/cards/${cardId}`
 
-  const snap = await getDocs(collection(db, `${base}/records`))
+  const snap = await getDocs(collection(db, `${base}/attendance`))
   if (snap.size > 0) {
     const batch = writeBatch(db)
     snap.docs.forEach((d) => batch.delete(d.ref))
     await batch.commit()
   }
   await deleteDoc(doc(db, base))
+}
+
+// data: { status, otHours, note } — merged into the day record
+export async function setAttendance(cardId, dateKey, data) {
+  const ref = doc(getDb(), `${userPath()}/cards/${cardId}/attendance/${dateKey}`)
+  return setDoc(ref, data, { merge: true })
+}
+
+export async function clearAttendance(cardId, dateKey) {
+  const ref = doc(getDb(), `${userPath()}/cards/${cardId}/attendance/${dateKey}`)
+  return deleteDoc(ref)
 }

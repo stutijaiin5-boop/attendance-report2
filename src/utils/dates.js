@@ -1,7 +1,3 @@
-export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-const DATE_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
 export function toDateKey(d) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -20,38 +16,30 @@ export function addDays(d, n) {
   return c
 }
 
-export function startOfWeek(d) {
-  const c = new Date(d)
-  const diff = (c.getDay() + 6) % 7 // Monday-first
-  c.setDate(c.getDate() - diff)
-  return c
-}
-
-export function monthGrid(year, month) {
-  const first = new Date(year, month, 1)
-  const offset = (first.getDay() + 6) % 7
-  const start = addDays(first, -offset)
-  return Array.from({ length: 42 }, (_, i) => addDays(start, i))
-}
-
 export function todayMidnight() {
   const now = new Date()
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
-export function monthLabel(year, month) {
-  const names = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ]
-  return `${names[month]} ${year}`
+// Sunday-first month grid (42 cells)
+export function monthGrid(year, month) {
+  const first = new Date(year, month, 1)
+  const start = addDays(first, -first.getDay())
+  return Array.from({ length: 42 }, (_, i) => addDays(start, i))
 }
 
-export function weekdayLabel(index) {
-  return DATE_KEYS[index]
+const MONTH_NAMES = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+]
+
+export function monthLabel(year, month) {
+  return `${MONTH_NAMES[month]} ${year}`
 }
+
+export const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
 export function formatLong(key) {
   const d = fromDateKey(key)
-  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 }

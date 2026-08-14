@@ -1,19 +1,18 @@
-# Attendance Report
+# Self Attendance
 
-A full-stack attendance tracker that tells you your real number: how safe your bunks are, how many classes you need to recover, and what your streak looks like — synced across every device.
+A full-stack calendar attendance tracker with attendance cards, a tap-to-mark month calendar, and automatic monthly percentages. Synced across every device via Firebase.
 
-**Live site:** review Netlify dashboard (this repo deploys to Netlify)
+**Live site:** deploy this repo to Netlify (see below)
 
 ## Features
 
-- Email/password + Google sign-in (Firebase Auth)
-- Subjects with target attendance % (default 75%) and weekly schedule
-- Daily marking: Present / Absent / Cancelled via a week strip and a tappable month calendar
-- Per-subject stats: current %, attended/held, **Safe to bunk**, **Need to attend**
-- Overall dashboard with an aggregate ring chart and 🔥 full-attendance streak
-- Low-attendance alerts when a subject drops below target
-- Weekly and monthly history views with per-period summaries
-- Mobile-first Tailwind UI, no component libraries
+- 🔐 Email/Password + Google sign-in (Firebase Auth)
+- 🃏 **Home list** — attendance cards (e.g. "clg") with a circular %, colored red/orange/green, plus search
+- 🗓️ **Month calendar** — SUN–SAT grid, PREV / NEXT pills, swipe left/right to change month, today outlined
+- 👆 **Tap a date** to mark: Present, Absent, Half Day, OverTime (with hours), Shift (soon), More Options → Holiday / Weekly Off / Leave (soon) / Note — and Clear
+- 🎨 Cell coloring: Present = green cell, Absent = red cell, Half Day = orange cell, Holiday/Week Off/Leave = labels, OT = tinted cell
+- 📊 **Monthly summary panel**: Present / Absent / Half Days / OT hours-days, percentage, and a More Info day-by-day detail
+- 🔄 Cross-device sync via Firestore
 
 ## Tech stack
 
@@ -21,22 +20,21 @@ A full-stack attendance tracker that tells you your real number: how safe your b
 | --- | --- |
 | Frontend | React 18 + Vite 4 + Tailwind CSS |
 | Auth + DB | Firebase Auth + Cloud Firestore |
-| Serverless | Netlify Functions |
-| Hosting | Netlify (static site + functions) |
+| Hosting | Netlify (static site only — no serverless functions) |
 
 ## Data model (Firestore)
 
 ```
-users/{userId}                          # implicit, created on first sign-in
-users/{userId}/subjects/{subjectId}     # { name, targetPercent, scheduledDays[], createdAt }
-users/{userId}/subjects/{subjectId}/records/{YYYY-MM-DD}   # { status: present|absent|cancelled }
+users/{userId}                                # implicit, created on first sign-in
+users/{userId}/cards/{cardId}                 # { name, createdAt }
+users/{userId}/cards/{cardId}/attendance/{YYYY-MM-DD}
+    # { status: "present" | "absent" | "half_day" | "overtime" | "holiday" | "weekly_off" | "leave",
+    #   otHours: <number, only if overtime>, note: <string, only if note added> }
 ```
-
-Records are stored with the local date as the document ID — one document per subject per day.
 
 ### Firestore security rules
 
-Enable these in **Firestore > Rules** so each user can only read/write their own data:
+**Firestore → Rules → Publish:**
 
 ```
 rules_version = '2';
@@ -49,26 +47,37 @@ service cloud.firestore {
 }
 ```
 
-> Rule of thumb for the rules editor: paste, then hit "Publish" — the default editor UI validates the syntax automatically.
+## Monthly percentage formula
+
+```
+(Present + Half Day × 0.5) ÷ (Present + Absent + Half Day) × 100
+```
+
+Holiday, Weekly Off, Leave, OT and unmarked days are excluded from the denominator.
 
 ## Getting started
 
 ### 1. Create a Firebase project
 
-1. Go to [Firebase Console](https://console.firebase.google.com) → **Add project**.
-2. **Build > Authentication > Get started**:
-   - Enable *Email/Password* sign-in.
-   - Enable *Google* sign-in (choose your support email).
-   - Add your Netlify domain (e.g. `https://attendance-report2.netlify.app`) to **Authorized domains**. `localhost` is allowed by default.
-3. **Build > Firestore Database > Create database** (production mode, nearest region). Delete the default playground rules and publish the rules above.
+1. [Firebase Console](https://console.firebase.google.com) → **Add project** (e.g. `attendance-report`).
+2. **Build → Authentication → Get started:**
+   - Enable *Email/Password*.
+   - Enable *Google* (choose your support email).
+   - **Settings → Authorized domains**: add your Netlify domain, e.g. `https://your-site.netlify.app`. `localhost` is pre-allowed.
+3. **Build → Firestore Database → Create database** (production mode). Publish the security rules above.
 
-### 2. Register a web app
+### 2. Register a web app and copy the config
 
-Project settings **⚙ → Project settings → Your apps → Web app** (</> icon). Copy the `firebaseConfig` values.
+Project settings **⚙ → Your apps → Web app (**</>**)**. Copy:
 
-### 3. Configure env vars
+```
+apiKey, authDomain, projectId, storageBucket,
+messagingSenderId, appId, measurementId
+```
 
-**Local dev** — create `.env` (copy from `.env.example`):
+### 3. Add env vars (VITE_ prefix, all 7)
+
+**Local dev** — create `.env` (see `.env.example`):
 
 ```
 VITE_FIREBASE_API_KEY=...
@@ -77,21 +86,12 @@ VITE_FIREBASE_PROJECT_ID=...
 VITE_FIREBASE_STORAGE_BUCKET=...
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
+VITE_FIREBASE_MEASUREMENT_ID=...
 ```
 
-**Netlify (production)** — set the *same* values **twice** in **Site configuration → Environment variables**:
+> The app shows a **Setup required** screen listing exactly which of the seven `VITE_FIREBASE_*` variables are missing when config is incomplete.
 
-1. `VITE_FIREBASE_*` prefixed versions — Vite bakes these into the bundle at build time, so the app **always** works (standard Firebase practice; web config is public by design).
-2. `FIREBASE_*` versions (no prefix) — served at runtime by `/.netlify/functions/get-firebase-config`.
-
-```
-FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID,
-FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID
-```
-
-> ⚠️ **Scope matters:** for each variable, Scope must include **FUNCTIONS** (choose *All scopes*). Variables scoped to *Builds only* are NOT visible to Netlify Functions at runtime — the function will return a "missing" error even though the build succeeded. After changing scope or adding vars, trigger **Deploys → Clear cache and deploy site**, because function envs are snapshotted per deploy.
-
-In production the app first fetches `/.netlify/functions/get-firebase-config`; if that fails or returns incomplete data, it falls back to the bundled `VITE_FIREBASE_*` values. Keys are never hardcoded in source. (Keep private keys, like a Firebase service account, server-side only.)
+**Netlify (production)** — Site configuration → Environment variables → add the same seven names with the `VITE_FIREBASE_` prefix. Scope may stay *All scopes* or *Builds* — the app reads these at build/runtime via `import.meta.env`, no serverless functions involved. No `FIREBASE_*` (unprefixed) copies are needed.
 
 ### 4. Run locally
 
@@ -102,44 +102,37 @@ npm run dev        # http://localhost:5173
 
 ### 5. Deploy to Netlify
 
-**Option A — Git integration (recommended):** in Netlify dashboard → *Add new site → Import existing project*, pick this GitHub repo and set:
-
-- Build command: `npm run build`
-- Publish directory: `dist`
-
-Then add the `FIREBASE_*` env vars (step 3) and deploy. Functions deploy automatically.
-
-**Option B — CLI:**
-
-```bash
-npm i -g netlify-cli
-netlify login
-netlify init --manual     # or: netlify link --name attendance-report2
-netlify env:import .env   # sets FIREBASE_* vars (strips VITE_ prefix)
-netlify deploy --prod
-```
-
-## Netlify functions
-
-- `netlify/functions/get-firebase-config.js` — serves Firebase config from env vars in production, so keys aren't bundled into the static site.
+1. Netlify dashboard → **Add new site → Import an existing project → GitHub** → pick this repo.
+2. Set: Build command `npm run build`, publish directory `dist` (already wired via `netlify.toml`).
+3. Add the seven `VITE_FIREBASE_*` env vars in Site configuration → Environment variables.
+4. Deploy. SPA routing is handled by the `_redirects`/`netlify.toml` catch-all.
+5. Add `https://your-site.netlify.app` to Firebase **Authentication → Settings → Authorized domains** and test Google sign-in.
 
 ## Project structure
 
 ```
-├── netlify/functions/        # serverless functions
-├── src/
-│   ├── components/           # ProgressRing, SubjectCard, MonthCalendar, …
-│   ├── context/AuthContext   # auth state + actions
-│   ├── hooks/useData.js      # live Firestore subscriptions
-│   ├── pages/                # Auth, Dashboard, SubjectForm (onboarding), SubjectDetail, History
-│   ├── services/attendance.js# Firestore writes
-│   └── utils/                # dates.js, attendanceMath.js (pure logic)
-└── netlify.toml              # build config + SPA redirects
+├── netlify.toml                # build config + SPA redirects
+├── public/_redirects           # SPA fallback
+└── src/
+    ├── components/             # ActionMenu, SummaryPanel, Modals, ProgressRing, icons, …
+    ├── context/AuthContext     # auth state + actions
+    ├── hooks/useData.js        # live Firestore subscriptions (cards, attendance)
+    ├── pages/                  # AuthPage, Home (list), Calendar (month grid)
+    ├── services/attendance.js  # Firestore writes
+    ├── firebase.js             # client-only config from import.meta.env.VITE_FIREBASE_*
+    └── utils/                  # dates.js, attendanceMath.js (pure logic)
 ```
 
-## Stats explained
+## Status meanings
 
-- **Attendance %** = `present / (present + absent)` — cancelled classes are excluded from totals.
-- **Safe to bunk** = `floor(P·(1−t)/t − A)` — extra classes you can miss while staying ≥ target `t`.
-- **Need to attend** = `ceil((t·held − P)/(1−t))` — consecutive attends needed to climb back to target.
-- **Streak** = consecutive days (ending today) with zero absences; unscheduled days are skipped, cancelled days don't break it.
+| Status | Cell |
+| --- | --- |
+| Present | solid green cell |
+| Absent | solid red cell |
+| Half Day | solid orange cell |
+| OverTime | green-tinted cell with OT hours |
+| Holiday | plain cell, red "Holiday" label |
+| Weekly Off | plain cell, gray "Week off" label |
+| Leave | plain cell, amber "Leave" label |
+| Note | stored on the day; ✎ marker if no status |
+| Clear | removes the day's record entirely |

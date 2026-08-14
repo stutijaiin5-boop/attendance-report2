@@ -3,60 +3,86 @@ import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { useAuth } from '../context/AuthContext'
 import { getDb } from '../firebase'
 
-export function useSubjects() {
+export function useCards() {
   const { user } = useAuth()
-  const [subjects, setSubjects] = useState([])
+  const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user) {
-      setSubjects([])
+      setCards([])
       setLoading(false)
       return
     }
-    const q = query(
-      collection(getDb(), 'users', user.uid, 'subjects'),
-      orderBy('createdAt', 'desc'),
-    )
+    const q = query(collection(getDb(), 'users', user.uid, 'cards'), orderBy('createdAt', 'desc'))
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        setSubjects(
-          snap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-            targetPercent: d.data().targetPercent ?? 75,
-            scheduledDays: d.data().scheduledDays ?? [],
-          })),
-        )
+        setCards(snap.docs.map((d) => ({ id: d.id, name: d.data().name ?? '', createdAt: d.data().createdAt })))
         setLoading(false)
       },
       (err) => {
-        console.error('Failed to load subjects', err)
+        console.error('Failed to load cards', err)
         setLoading(false)
       },
     )
     return unsubscribe
   }, [user?.uid])
 
-  return { subjects, loading }
+  return { cards, loading }
 }
 
-export function useRecordsForSubjects(subjectIds = []) {
+export function useAttendance(cardId) {
   const { user } = useAuth()
-  const [recordsBySubject, setRecordsBySubject] = useState({})
+  const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
-  const idsKey = subjectIds.join('|')
+
+  useEffect(() => {
+    if (!user || !cardId) {
+      setRecords([])
+      setLoading(false)
+      return
+    }
+    const unsubscribe = onSnapshot(
+      collection(getDb(), 'users', user.uid, 'cards', cardId, 'attendance'),
+      (snap) => {
+        setRecords(
+          snap.docs.map((d) => ({
+            id: d.id,
+            date: d.id,
+            status: d.data().status ?? null,
+            otHours: d.data().otHours ?? null,
+            note: d.data().note ?? null,
+          })),
+        )
+        setLoading(false)
+      },
+      (err) => {
+        console.error(`Failed to load attendance for ${cardId}`, err)
+        setLoading(false)
+      },
+    )
+    return unsubscribe
+  }, [user?.uid, cardId])
+
+  return { records, loading }
+}
+
+export function useAllAttendance(cardIds = []) {
+  const { user } = useAuth()
+  const [recordsByCard, setRecordsByCard] = useState({})
+  const [loading, setLoading] = useState(true)
+  const idsKey = cardIds.join('|')
 
   useEffect(() => {
     if (!user) {
-      setRecordsBySubject({})
+      setRecordsByCard({})
       setLoading(false)
       return
     }
     const ids = idsKey ? idsKey.split('|') : []
     if (ids.length === 0) {
-      setRecordsBySubject({})
+      setRecordsByCard({})
       setLoading(false)
       return
     }
@@ -64,17 +90,23 @@ export function useRecordsForSubjects(subjectIds = []) {
     const map = {}
     const unsubs = ids.map((id) =>
       onSnapshot(
-        collection(getDb(), 'users', user.uid, 'subjects', id, 'records'),
+        collection(getDb(), 'users', user.uid, 'cards', id, 'attendance'),
         (snap) => {
-          map[id] = snap.docs.map((d) => ({ id: d.id, date: d.id, status: d.data().status }))
-          setRecordsBySubject({ ...map })
+          map[id] = snap.docs.map((d) => ({
+            id: d.id,
+            date: d.id,
+            status: d.data().status ?? null,
+            otHours: d.data().otHours ?? null,
+            note: d.data().note ?? null,
+          }))
+          setRecordsByCard({ ...map })
         },
-        (err) => console.error(`Failed to load records for ${id}`, err),
+        (err) => console.error(`Failed to load attendance for ${id}`, err),
       ),
     )
     setLoading(false)
     return () => unsubs.forEach((u) => u())
   }, [user?.uid, idsKey])
 
-  return { recordsBySubject, loading }
+  return { recordsByCard, loading }
 }

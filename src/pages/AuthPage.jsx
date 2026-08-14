@@ -62,9 +62,9 @@ export default function AuthPage() {
           <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-bold text-white">
             ✓
           </span>
-          <h1 className="text-2xl font-bold text-slate-800">Attendance Report</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Self Attendance</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Track classes, streaks and bunk math for every subject.
+            Track attendance, OT, holidays and more — one card at a time.
           </p>
         </div>
 

@@ -2,63 +2,45 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
+export const REQUIRED_ENV_VARS = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID',
+  'VITE_FIREBASE_MEASUREMENT_ID',
+]
+
+export function missingEnvVars() {
+  return REQUIRED_ENV_VARS.filter((key) => !import.meta.env[key])
+}
+
 let app = null
 let auth = null
 let db = null
 
-function configFromEnv(env) {
-  return {
+export async function initFirebase() {
+  if (app) return true
+
+  const missing = missingEnvVars()
+  if (missing.length > 0) {
+    throw new Error(`Missing: ${missing.join(', ')}`)
+  }
+
+  const env = import.meta.env
+  app = initializeApp({
     apiKey: env.VITE_FIREBASE_API_KEY,
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: env.VITE_FIREBASE_APP_ID,
-  }
-}
-
-export async function initFirebase() {
-  if (app) return true
-
-  let config
-  if (import.meta.env.DEV) {
-    config = configFromEnv(import.meta.env)
-  } else {
-    try {
-      const res = await fetch('/.netlify/functions/get-firebase-config')
-      if (res.ok) {
-        const data = await res.json()
-        config = data.config
-      } else {
-        const detail = await res.json().catch(() => null)
-        console.warn(
-          'Firebase config function unavailable:',
-          detail?.error || res.status,
-          'Falling back to build-time env vars.',
-        )
-      }
-    } catch (err) {
-      console.warn('Firebase config function failed, falling back to build-time env vars.', err)
-    }
-    if (!config?.apiKey || !config?.projectId) {
-      config = configFromEnv(import.meta.env)
-    }
-  }
-
-  if (!config?.apiKey || !config?.projectId) {
-    throw new Error(
-      'Firebase configuration is missing. Add VITE_FIREBASE_* keys to your local .env file (dev) or FIREBASE_* keys to Netlify environment variables (production). See README.md.',
-    )
-  }
-
-  app = initializeApp(config)
+    measurementId: env.VITE_FIREBASE_MEASUREMENT_ID,
+  })
   auth = getAuth(app)
   db = getFirestore(app)
   return true
-}
-
-export function getFirebaseApp() {
-  return app
 }
 
 export function getAuthInstance() {
