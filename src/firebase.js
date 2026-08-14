@@ -24,10 +24,20 @@ export async function initFirebase() {
   if (import.meta.env.DEV) {
     config = configFromEnv(import.meta.env)
   } else {
-    const res = await fetch('/.netlify/functions/get-firebase-config')
-    if (!res.ok) throw new Error('Could not load Firebase configuration.')
-    const data = await res.json()
-    config = data.config
+    try {
+      const res = await fetch('/.netlify/functions/get-firebase-config')
+      if (res.ok) {
+        const data = await res.json()
+        config = data.config
+      } else {
+        console.warn('Firebase config function unavailable, falling back to build-time env vars.')
+      }
+    } catch (err) {
+      console.warn('Firebase config function failed, falling back to build-time env vars.', err)
+    }
+    if (!config?.apiKey || !config?.projectId) {
+      config = configFromEnv(import.meta.env)
+    }
   }
 
   if (!config?.apiKey || !config?.projectId) {
