@@ -131,7 +131,7 @@ npm run dev        # http://localhost:5173
 | Absent | solid red cell |
 | Half Day | solid orange cell |
 | OverTime | green-tinted cell with OT hours |
-| Holiday | plain cell, red "Holiday" label |
+| Holiday | solid amber/orange cell with "Holiday" label |
 | Weekly Off | plain cell, gray "Week off" label |
 | Leave | plain cell, amber "Leave" label |
 | Note | stored on the day; ✎ marker if no status |

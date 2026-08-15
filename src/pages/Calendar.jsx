@@ -18,6 +18,7 @@ const CELL_STYLES = {
   present: 'bg-emerald-500 text-white',
   absent: 'bg-red-500 text-white',
   half_day: 'bg-orange-400 text-white',
+  holiday: 'bg-amber-500 text-white',
   overtime: 'bg-emerald-100 text-emerald-800',
 }
 
@@ -78,10 +79,14 @@ function DateCell({ day, inMonth, isToday, record, onCycle, onLongPress }) {
       } ${isToday ? 'ring-2 ring-emerald-500 ring-offset-1' : ''}`}
     >
       <span className={`text-sm font-semibold ${colored ? '' : 'text-slate-700'}`}>{day.getDate()}</span>
-      {label && <span className={`text-[8px] leading-tight font-semibold ${label[1]}`}>{label[0]}</span>}
+      {label && <span className={`text-[8px] leading-tight font-semibold ${colored ? 'text-white' : label[1]}`}>{label[0]}</span>}
       {status === 'overtime' && <span className="mt-0.5 text-[8px] font-black">OT</span>}
       {!status && note && <span className="absolute right-1 top-0.5 text-[10px]">✎</span>}
-      {status && <span className={`mt-0.5 text-[8px] font-black ${colored.includes('text-white') ? 'opacity-80' : ''}`}>{status[0].toUpperCase()}</span>}
+      {status && !label && (
+        <span className={`mt-0.5 text-[8px] font-black ${(colored || '').includes('text-white') ? 'opacity-80' : ''}`}>
+          {status[0].toUpperCase()}
+        </span>
+      )}
     </button>
   )
 }
