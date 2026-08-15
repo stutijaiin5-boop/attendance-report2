@@ -7,6 +7,7 @@ export function useCards() {
   const { user } = useAuth()
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!user) {
@@ -23,19 +24,21 @@ export function useCards() {
       },
       (err) => {
         console.error('Failed to load cards', err)
+        setError(err)
         setLoading(false)
       },
     )
     return unsubscribe
   }, [user?.uid])
 
-  return { cards, loading }
+  return { cards, loading, error }
 }
 
 export function useAttendance(cardId) {
   const { user } = useAuth()
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!user || !cardId) {
@@ -59,13 +62,14 @@ export function useAttendance(cardId) {
       },
       (err) => {
         console.error(`Failed to load attendance for ${cardId}`, err)
+        setError(err)
         setLoading(false)
       },
     )
     return unsubscribe
   }, [user?.uid, cardId])
 
-  return { records, loading }
+  return { records, loading, error }
 }
 
 export function useAllAttendance(cardIds = []) {

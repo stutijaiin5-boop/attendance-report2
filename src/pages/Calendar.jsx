@@ -55,7 +55,7 @@ export default function Calendar() {
   const navigate = useNavigate()
   const { cards, loading: cardsLoading } = useCards()
   const card = cards.find((c) => c.id === cardId)
-  const { records } = useAttendance(cardId)
+  const { records, error: readError } = useAttendance(cardId)
 
   const today = todayMidnight()
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
@@ -66,6 +66,7 @@ export default function Calendar() {
   const [prompt, setPrompt] = useState(null)
   const [detail, setDetail] = useState(false)
   const [tip, setTip] = useState(true)
+  const [error, setError] = useState(null)
 
   const touchX = useRef(null)
   const py = cursor.getFullYear()
@@ -90,44 +91,61 @@ export default function Calendar() {
   const prevMonth = () => setCursor(new Date(py, pm - 1, 1))
   const nextMonth = () => setCursor(new Date(py, pm + 1, 1))
 
-  const mark = async (status, extras) => {
-    if (!menuDate) return
+  // Wraps a Firestore op; surfaces failures on-screen instead of silently losing data.
+  const run = async (fn) => {
     try {
-      if (status === 'overtime') {
-        setPrompt({ type: 'ot' })
-        return
-      }
-      if (status === 'note') {
-        setPrompt({ type: 'note' })
-        return
-      }
-      await setAttendance(cardId, menuDate, { status, ...extras })
-      setMenuDate(null)
+      setError(null)
+      await fn()
+      return true
     } catch (err) {
       console.error(err)
+      setError(
+        err?.code === 'permission-denied'
+          ? 'Firestore is rejecting writes — check your security rules (see README).'
+          : `Could not save: ${err?.message || err}`,
+      )
+      return false
+    }
+  }
+
+  const mark = async (status, extras) => {
+    if (!menuDate) return
+    if (status === 'overtime') {
+      setPrompt({ type: 'ot' })
+      return
+    }
+    if (status === 'note') {
+      setPrompt({ type: 'note' })
+      return
+    }
+    if (await run(() => setAttendance(cardId, menuDate, { status, ...extras }))) {
+      setMenuDate(null)
     }
   }
 
   const onOvertime = async (hours) => {
-    await setAttendance(cardId, menuDate, { status: 'overtime', otHours: Number(hours) })
-    setPrompt(null)
-    setMenuDate(null)
+    if (await run(() => setAttendance(cardId, menuDate, { status: 'overtime', otHours: Number(hours) }))) {
+      setPrompt(null)
+      setMenuDate(null)
+    }
   }
 
   const onNote = async (text) => {
-    await setAttendance(cardId, menuDate, { note: text })
-    setPrompt(null)
-    setMenuDate(null)
+    if (await run(() => setAttendance(cardId, menuDate, { note: text }))) {
+      setPrompt(null)
+      setMenuDate(null)
+    }
   }
 
   const onClear = async () => {
-    await clearAttendance(cardId, menuDate)
-    setMenuDate(null)
+    if (await run(() => clearAttendance(cardId, menuDate))) {
+      setMenuDate(null)
+    }
   }
 
   const saveTitle = async () => {
     if (titleDraft.trim() && titleDraft.trim() !== card.name) {
-      await renameCard(cardId, titleDraft.trim())
+      await run(() => renameCard(cardId, titleDraft.trim()))
     }
     setEditingTitle(false)
   }
@@ -135,8 +153,9 @@ export default function Calendar() {
   const onDeleteCard = async () => {
     setOverflow(false)
     if (!window.confirm(`Delete "${card.name}" and all its attendance records?`)) return
-    await deleteCard(cardId)
-    navigate('/')
+    if (await run(() => deleteCard(cardId))) {
+      navigate('/')
+    }
   }
 
   return (
@@ -198,6 +217,23 @@ export default function Calendar() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-5">
+        {error && (
+          <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm text-red-700">{error}</p>
+            <button type="button" onClick={() => setError(null)} className="text-xs font-bold text-red-500 hover:underline">
+              Dismiss
+            </button>
+          </div>
+        )}
+        {readError && !error && (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm text-red-700">
+              Could not load saved attendance from Firestore ({readError.code || readError.message}).
+              Check that your Firestore security rules allow reads and that you're signed in.
+            </p>
+          </div>
+        )}
+
         {tip && (
           <div className="mb-4 flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-2.5">
             <p className="text-sm text-emerald-700">Tip: Swipe left-right here to change month</p>
