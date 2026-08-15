@@ -191,10 +191,14 @@ export default function Calendar() {
     }
   }
 
-  // Quick-tap cycle: no status -> Present -> Absent -> no status -> ...
+  // Quick-tap cycle: no status -> Present -> Absent -> Holiday -> no status -> ...
   const handleTap = async (dateKey) => {
     const current = recordMap[dateKey]?.status ?? null
-    const next = current === 'present' ? 'absent' : current === 'absent' ? null : 'present'
+    const next =
+      current === 'present' ? 'absent'
+      : current === 'absent' ? 'holiday'
+      : current === 'holiday' ? null
+      : 'present'
     if (next === null) {
       await run(() => clearAttendance(cardId, dateKey))
     } else {
