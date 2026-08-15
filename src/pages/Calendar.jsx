@@ -27,17 +27,53 @@ const LABELS = {
   leave: ['Leave', 'text-amber-600'],
 }
 
-function DateCell({ day, inMonth, isToday, record, onClick }) {
+// Tap cycles Present -> Absent -> Clear -> Present...
+// Long-press (or right-click) opens the full status menu.
+function DateCell({ day, inMonth, isToday, record, onCycle, onLongPress }) {
   const { status, note } = record || {}
   const colored = CELL_STYLES[status]
   const label = LABELS[status]
   const key = toDateKey(day)
+  const press = useRef(null)
+
+  const start = () => {
+    press.current = {
+      timer: setTimeout(() => {
+        press.current = { fired: true, timer: null }
+        onLongPress(key)
+      }, 450),
+      fired: false,
+    }
+  }
+  const finish = () => {
+    const p = press.current
+    if (!p) return
+    press.current = null
+    if (p.timer) {
+      clearTimeout(p.timer)
+      onCycle(key)
+    }
+  }
+  const cancel = () => {
+    if (press.current?.timer) clearTimeout(press.current.timer)
+    press.current = null
+  }
 
   return (
     <button
       type="button"
-      onClick={() => onClick(key)}
-      className={`relative flex h-14 flex-col items-center justify-start rounded-lg pt-1 transition ${
+      onTouchStart={start}
+      onTouchEnd={finish}
+      onTouchMove={cancel}
+      onMouseDown={start}
+      onMouseUp={finish}
+      onMouseLeave={cancel}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        cancel()
+        onLongPress(key)
+      }}
+      className={`relative flex h-14 flex-col items-center justify-start rounded-lg pt-1 transition select-none ${
         inMonth ? (colored || 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100') : 'invisible'
       } ${isToday ? 'ring-2 ring-emerald-500 ring-offset-1' : ''}`}
     >
@@ -140,6 +176,17 @@ export default function Calendar() {
   const onClear = async () => {
     if (await run(() => clearAttendance(cardId, menuDate))) {
       setMenuDate(null)
+    }
+  }
+
+  // Quick-tap cycle: no status -> Present -> Absent -> no status -> ...
+  const handleTap = async (dateKey) => {
+    const current = recordMap[dateKey]?.status ?? null
+    const next = current === 'present' ? 'absent' : current === 'absent' ? null : 'present'
+    if (next === null) {
+      await run(() => clearAttendance(cardId, dateKey))
+    } else {
+      await run(() => setAttendance(cardId, dateKey, { status: next }))
     }
   }
 
@@ -280,7 +327,8 @@ export default function Calendar() {
                 inMonth={inCurrentMonth(day)}
                 isToday={toDateKey(day) === todayKey}
                 record={recordMap[toDateKey(day)]}
-                onClick={setMenuDate}
+                onCycle={handleTap}
+                onLongPress={setMenuDate}
               />
             ))}
           </div>
