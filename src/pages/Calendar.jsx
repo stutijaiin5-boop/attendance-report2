@@ -108,6 +108,8 @@ export default function Calendar() {
   const [detail, setDetail] = useState(false)
   const [tip, setTip] = useState(true)
   const [error, setError] = useState(null)
+  const [flash, setFlash] = useState(null)
+  const flashTimer = useRef(null)
 
   const touchX = useRef(null)
   const py = cursor.getFullYear()
@@ -137,13 +139,18 @@ export default function Calendar() {
     try {
       setError(null)
       await fn()
+      if (flashTimer.current) clearTimeout(flashTimer.current)
+      setFlash('Saved ✓')
+      flashTimer.current = setTimeout(() => setFlash(null), 1500)
       return true
     } catch (err) {
       console.error(err)
       setError(
         err?.code === 'permission-denied'
           ? 'Firestore is rejecting writes — check your security rules (see README).'
-          : `Could not save: ${err?.message || err}`,
+          : err?.code === 'unavailable'
+            ? 'No network connection — your marks are stored on this device and will sync when you\'re back online.'
+            : `Could not save: ${err?.message || err}`,
       )
       return false
     }
@@ -269,6 +276,11 @@ export default function Calendar() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-5">
+        {flash && (
+          <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-center text-sm font-semibold text-emerald-700">
+            {flash}
+          </div>
+        )}
         {error && (
           <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
             <p className="text-sm text-red-700">{error}</p>

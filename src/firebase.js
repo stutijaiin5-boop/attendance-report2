@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { enableIndexedDbPersistence, getFirestore } from 'firebase/firestore'
 
 export const REQUIRED_ENV_VARS = [
   'VITE_FIREBASE_API_KEY',
@@ -40,6 +40,17 @@ export async function initFirebase() {
   })
   auth = getAuth(app)
   db = getFirestore(app)
+
+  // Keep a local copy so marks made offline (or during flaky network)
+  // queue up and sync to Firestore once back online.
+  try {
+    await enableIndexedDbPersistence(db, { synchronizeTabs: true })
+  } catch (err) {
+    if (err.code !== 'already-exists') {
+      console.warn('Offline persistence unavailable:', err.code || err.message)
+    }
+  }
+
   return true
 }
 
