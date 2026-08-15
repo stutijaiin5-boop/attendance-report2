@@ -12,13 +12,14 @@ import Spinner from '../components/Spinner'
 export default function Home() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const { cards, loading } = useCards()
+  const { cards, loading, error: readError } = useCards()
   const { recordsByCard } = useAllAttendance(cards.map((c) => c.id))
 
   const [query, setQuery] = useState('')
   const [drawer, setDrawer] = useState(false)
   const [overflow, setOverflow] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
 
   if (loading) return <Spinner label="Loading your cards…" />
@@ -27,11 +28,17 @@ export default function Home() {
 
   const addCard = async (name) => {
     setBusy(true)
+    setError(null)
     try {
       await createCard(name)
       setAdding(false)
     } catch (err) {
       console.error(err)
+      setError(
+        err?.code === 'permission-denied'
+          ? 'Firestore is rejecting writes — check your security rules (see README).'
+          : `Could not create card: ${err?.message || err}`,
+      )
     } finally {
       setBusy(false)
     }
@@ -76,6 +83,19 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-5">
+        {(error || readError) && (
+          <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm text-red-700">
+              {error || (readError.code === 'permission-denied'
+                ? 'Firestore is rejecting reads — check your security rules (see README).'
+                : `Could not reach Firestore: ${readError.code || readError.message}`)}
+            </p>
+            <button type="button" onClick={() => setError(null)} className="text-xs font-bold text-red-500 hover:underline">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         <div className="relative mb-4">
           <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
