@@ -191,19 +191,12 @@ export default function Calendar() {
     }
   }
 
-  // Quick-tap cycle: no status -> Present -> Absent -> Holiday -> no status -> ...
+  // Quick-tap cycle: unmarked -> Present -> Absent -> Holiday (stays on Holiday)
   const handleTap = async (dateKey) => {
     const current = recordMap[dateKey]?.status ?? null
-    const next =
-      current === 'present' ? 'absent'
-      : current === 'absent' ? 'holiday'
-      : current === 'holiday' ? null
-      : 'present'
-    if (next === null) {
-      await run(() => clearAttendance(cardId, dateKey))
-    } else {
-      await run(() => setAttendance(cardId, dateKey, { status: next }))
-    }
+    const next = current === 'present' ? 'absent' : current === 'absent' ? 'holiday' : 'present'
+    if (next === current) return
+    await run(() => setAttendance(cardId, dateKey, { status: next }))
   }
 
   const saveTitle = async () => {
